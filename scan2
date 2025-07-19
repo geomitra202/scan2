@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Closest BLE Device Scanner</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin-top: 60px;
+      background-color: #f5f5f5;
+    }
+    #scanBtn {
+      padding: 12px 24px;
+      font-size: 18px;
+      border: none;
+      background-color: #007bff;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    #result {
+      margin-top: 30px;
+      font-size: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>📡 Closest BLE Device</h1>
+  <button id="scanBtn">Scan</button>
+
+  <div id="result">No device scanned yet</div>
+
+  <script>
+    document.getElementById("scanBtn").addEventListener("click", async () => {
+      const resultEl = document.getElementById("result");
+      resultEl.textContent = "Scanning...";
+
+      try {
+        const seenDevices = new Map();
+
+        const options = {
+          acceptAllAdvertisements: true,
+          keepRepeatedDevices: true
+        };
+
+        const scan = await navigator.bluetooth.requestLEScan(options);
+
+        navigator.bluetooth.addEventListener('advertisementreceived', event => {
+          const name = event.device.name || event.name || "Unnamed";
+          const rssi = event.rssi;
+
+          // OPTIONAL: skip unnamed devices
+          // if (!name || name === "Unnamed") return;
+
+          if (!seenDevices.has(name) || rssi > seenDevices.get(name).rssi) {
+            seenDevices.set(name, { rssi });
+          }
+
+          // Find device with highest RSSI
+          let closest = null;
+          for (const [deviceName, data] of seenDevices.entries()) {
+            if (!closest || data.rssi > closest.rssi) {
+              closest = { name: deviceName, rssi: data.rssi };
+            }
+          }
+
+          if (closest) {
+            resultEl.innerHTML = `
+              <strong>Closest Device:</strong><br>
+              📛 Name: <b>${closest.name}</b><br>
+              📶 RSSI: <b>${closest.rssi} dBm</b>
+            `;
+          }
+        });
+
+        // Stop scan after 10 seconds
+        setTimeout(() => {
+          scan.stop();
+          resultEl.innerHTML += "<br><br>✅ Scan complete.";
+        }, 10000);
+
+      } catch (err) {
+        console.error(err);
+        resultEl.textContent = "❌ Error: " + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
